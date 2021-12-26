@@ -6,7 +6,7 @@ import fragmentShader from "../shaders/analyzer-mesh/fragment.glsl";
 
 const SOUND_FILE_PATH = "./sounds/first-song_003.mp3";
 const FFT_SIZE = 512 * 2;
-const BAND_RANGES = [160, 300, 1500, 5000, 15000, 22000];
+const BAND_RANGES = [175, 350, 800, 1800, 22000];
 const BAND_COUNT = BAND_RANGES.length;
 
 let analyser, analyserUniforms, analyserMesh;
@@ -79,7 +79,7 @@ export function initSound({ renderer, scene }) {
     : THREE.LuminanceFormat;
 
   analyserUniforms = {
-    tAudioData: {
+    uAudioData: {
       value: new THREE.DataTexture(
         normalizedFrequencyBands,
         BAND_COUNT,
@@ -88,15 +88,19 @@ export function initSound({ renderer, scene }) {
       ),
     },
   };
+}
 
+export function createAnalyserMesh() {
   const analyserGeometry = new THREE.PlaneGeometry(1, 1);
   const analyserMaterial = new THREE.ShaderMaterial({
     uniforms: analyserUniforms,
     vertexShader,
     fragmentShader,
   });
+
   analyserMesh = new THREE.Mesh(analyserGeometry, analyserMaterial);
-  scene.add(analyserMesh);
+
+  return analyserMesh;
 }
 
 export function setAverageFactor(averageFactor) {
@@ -145,7 +149,7 @@ export function updateCustomFrequencyBandData() {
     normalizedFrequencyBands[i] =
       (frequencyBands[i] / heighestAmplitudePerBand[i]) * 100;
 
-    analyserUniforms.tAudioData.value.needsUpdate = true;
+    analyserUniforms.uAudioData.value.needsUpdate = true;
   }
 }
 

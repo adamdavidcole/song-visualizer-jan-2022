@@ -1,20 +1,29 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
+import planeVertexShader from "./shaders/basic-plane/vertex.glsl";
+import planeFragmentShader from "./shaders/basic-plane/fragment.glsl";
+
 import getGui from "./utilities/debug-gui";
 import {
   initSound,
+  createAnalyserMesh,
   setAnalyserMeshVisibility,
   updateCustomFrequencyBandData,
   getAnalyserUniformData,
   getAudioElement,
 } from "./utilities/audio-analyser";
+import getCommonUniforms, {
+  initCommonUniforms,
+  updateCommonUniforms,
+  setResolutionUniform,
+} from "./utilities/common-uniforms";
 
 import "./style.css";
 
 const debugValues = {
   disableAudio: false,
-  isAnalyzerMeshVisible: true,
+  isAnalyzerMeshVisible: false,
   showAxesHelper: false,
   showGui: true,
 };
@@ -33,61 +42,52 @@ const canvas = document.querySelector("canvas.webgl");
 
 // Scene
 const scene = new THREE.Scene();
+initCommonUniforms();
 
-/**
- * Textures
- */
+function initSoundConnectedGeometry() {
+  /**
+   * Textures
+   */
 
-/**
- * Test mesh
- */
-// Geometry
+  /**
+   * Test mesh
+   */
+  // Geometry
 
-// Material
+  const geometry = new THREE.PlaneBufferGeometry(2, 2);
 
-// Mesh
+  // Material
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      ...getCommonUniforms(),
+      ...getAnalyserUniformData(),
+    },
+    vertexShader: planeVertexShader,
+    fragmentShader: planeFragmentShader,
+  });
+
+  // Mesh
+  var mesh = new THREE.Mesh(geometry, material);
+  scene.add(mesh);
+
+  const analyserMesh = createAnalyserMesh({ scene });
+  scene.add(analyserMesh);
+}
 
 const axesHelper = new THREE.AxesHelper(5);
 scene.add(axesHelper);
 
-gui.add(debugValues, "showAxesHelper").name("Show axes helper");
+const helpersGui = getGui().addFolder("Visualization helpers");
+helpersGui.add(debugValues, "showAxesHelper").name("Show axes helper");
+helpersGui.add(debugValues, "isAnalyzerMeshVisible").name("Show analyzer data");
 
 /**
  * Sizes
  */
-
-function getSizes() {
-  const windowWidth = window.innerWidth;
-  const windowHeight = window.innerHeight;
-
-  if (windowWidth > windowHeight) {
-    return {
-      width: windowHeight,
-      height: windowHeight,
-    };
-  }
-
-  return {
-    width: windowWidth,
-    height: windowWidth,
-  };
-}
-
-let sizes = getSizes();
-
-window.addEventListener("resize", () => {
-  // Update sizes
-  sizes = getSizes();
-  console.log("sizes", sizes);
-
-  // Update camera
-  camera.aspect = sizes.width / sizes.height;
-  camera.updateProjectionMatrix();
-
-  // Update renderer
-  renderer.setSize(sizes.width, sizes.height);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-});
+let sizes = {
+  width: canvas.width,
+  height: canvas.height,
+};
 
 /**
  * Camera
@@ -115,6 +115,44 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+function getSizes() {
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+
+  if (windowWidth > windowHeight) {
+    return {
+      width: windowHeight,
+      height: windowHeight,
+    };
+  }
+
+  return {
+    width: windowWidth,
+    height: windowWidth,
+  };
+}
+
+function setSizes() {
+  // Update sizes
+  sizes = getSizes();
+
+  // Update camera
+  camera.aspect = sizes.width / sizes.height;
+  camera.updateProjectionMatrix();
+
+  // Update renderer
+  renderer.setSize(sizes.width, sizes.height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  setResolutionUniform({ width: canvas.width, height: canvas.height });
+}
+
+window.addEventListener("resize", () => {
+  setSizes();
+});
+
+setSizes();
+
 /**
  * Animate
  */
@@ -123,6 +161,7 @@ const clock = new THREE.Clock();
 const tick = () => {
   const elapsedTime = clock.getElapsedTime();
 
+  updateCommonUniforms();
   updateCustomFrequencyBandData();
   setAnalyserMeshVisibility(debugValues.isAnalyzerMeshVisible);
   axesHelper.visible = debugValues.showAxesHelper;
@@ -141,19 +180,10 @@ if (debugValues.disableAudio) {
   const overlay = document.getElementById("overlay");
   overlay.remove();
 
-  //   initSoundConnectedGeometry();
+  initSoundConnectedGeometry();
 
   tick();
 } else {
-  // const fullscreenButton = document.getElementById("startFullscreen");
-  // fullscreenButton.addEventListener("click", () => {
-  //   document.documentElement.requestFullscreen();
-  // });
-
-  // if (debugValues.shouldPlayAll) {
-  //   fullscreenButton.remove();
-  // }
-
   const startButton = document.getElementById("startButton");
   startButton.addEventListener("click", onStartButtonClick);
 
@@ -163,18 +193,12 @@ if (debugValues.disableAudio) {
         clearInterval(waitForAudioReadyInterval);
 
         initSound({ scene, renderer });
-        // initSoundConnectedGeometry();
+        initSoundConnectedGeometry();
 
         const overlay = document.getElementById("overlay");
         overlay.remove();
 
-        // if (debugValues.shouldRecord) {
-        //   canvas.style.cursor = "none";
-        // }
-
         tick();
-
-        return;
       }
     }, 100);
 
