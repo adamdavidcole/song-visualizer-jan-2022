@@ -5,7 +5,9 @@ import vertexShader from "../shaders/analyzer-mesh/vertex.glsl";
 import fragmentShader from "../shaders/analyzer-mesh/fragment.glsl";
 
 const SOUND_FILE_PATH = "./sounds/first-song_003.mp3";
-const FFT_SIZE = 512 * 2;
+
+const FFT_BAND_COUNT = 512 * 2 * 2;
+const FFT_SIZE = FFT_BAND_COUNT * 2;
 const BAND_RANGES = [175, 350, 800, 1800, 22000];
 const BAND_COUNT = BAND_RANGES.length;
 
@@ -13,6 +15,13 @@ let analyser, analyserUniforms, analyserMesh;
 const frequencyBands = [];
 const heighestAmplitudePerBand = [];
 const normalizedFrequencyBands = new Uint8Array(BAND_COUNT);
+
+const rawFrequencyBands = new Uint8Array(FFT_BAND_COUNT);
+const normalizedRawFrequencyBands = new Uint8Array(FFT_BAND_COUNT);
+const heighestAmplitudePerRawFrequencyBand = [];
+
+let heighestTotalPower = 0;
+let normalizedTotalPower = 0;
 
 const mediaElement = new Audio(SOUND_FILE_PATH);
 
@@ -87,6 +96,18 @@ export function initSound({ renderer, scene }) {
         format
       ),
     },
+    uRawFrequencyData: {
+      value: new THREE.DataTexture(
+        normalizedRawFrequencyBands,
+        FFT_BAND_COUNT,
+        1,
+        format
+      ),
+    },
+    uTotalPower: {
+      value: normalizedTotalPower,
+    },
+    uBandCount: { value: BAND_COUNT },
   };
 }
 
@@ -120,6 +141,35 @@ export function updateCustomFrequencyBandData() {
   const nextFrequencyBands = [];
   const bucketCountPerBand = getBucketCountsPerBand();
 
+  let totalPowerSum = 0;
+  // get raw frequency data
+  // console.log("frequencyData.length", frequencyData.length);
+  for (let i = 0; i < frequencyData.length - 2; i++) {
+    rawFrequencyBands[i] = frequencyData[i];
+    totalPowerSum += rawFrequencyBands[i];
+    // console.log("totalPowerSum", totalPowerSum);
+    // if (isNaN(totalPowerSum)) {
+    //   console.log("i", i, frequencyData[i], rawFrequencyBands[i]);
+    // }
+
+    // keep track of highest amplitude per band
+    if (rawFrequencyBands[i] > (heighestAmplitudePerRawFrequencyBand[i] || 0)) {
+      heighestAmplitudePerRawFrequencyBand[i] = rawFrequencyBands[i];
+    }
+    // use heighestAmplitudePerBand value to normalize results between 0-100
+    normalizedRawFrequencyBands[i] =
+      (rawFrequencyBands[i] / heighestAmplitudePerRawFrequencyBand[i]) * 100;
+  }
+
+  // get total power normalized
+  if (totalPowerSum > heighestTotalPower) {
+    heighestTotalPower = totalPowerSum;
+  }
+  // console.log("totalPowerSum", totalPowerSum);
+  normalizedTotalPower = totalPowerSum / heighestTotalPower;
+  console.log("normalizedTotalPower", normalizedTotalPower);
+
+  // get power per dedicated band group
   let count = 0;
   for (let i = 0; i < BAND_COUNT; i++) {
     // get number of FFT buckets to collect for this band
@@ -150,6 +200,10 @@ export function updateCustomFrequencyBandData() {
       (frequencyBands[i] / heighestAmplitudePerBand[i]) * 100;
 
     analyserUniforms.uAudioData.value.needsUpdate = true;
+    analyserUniforms.uRawFrequencyData.value.needsUpdate = true;
+    analyserUniforms.uTotalPower.value = normalizedTotalPower;
+
+    // console.log("analyserUniforms", analyserUniforms);
   }
 }
 
