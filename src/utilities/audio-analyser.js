@@ -145,8 +145,15 @@ export function updateCustomFrequencyBandData() {
   // get raw frequency data
   // console.log("frequencyData.length", frequencyData.length);
   for (let i = 0; i < frequencyData.length - 2; i++) {
-    rawFrequencyBands[i] = frequencyData[i];
+    // rawFrequencyBands[i] = frequencyData[i];
+    // totalPowerSum += rawFrequencyBands[i];
+
+    rawFrequencyBands[i] =
+      (rawFrequencyBands[i] * averageFactor +
+        (1 - averageFactor) * frequencyData[i]) /
+      2.0;
     totalPowerSum += rawFrequencyBands[i];
+
     // console.log("totalPowerSum", totalPowerSum);
     // if (isNaN(totalPowerSum)) {
     //   console.log("i", i, frequencyData[i], rawFrequencyBands[i]);
@@ -167,7 +174,6 @@ export function updateCustomFrequencyBandData() {
   }
   // console.log("totalPowerSum", totalPowerSum);
   normalizedTotalPower = totalPowerSum / heighestTotalPower;
-  console.log("normalizedTotalPower", normalizedTotalPower);
 
   // get power per dedicated band group
   let count = 0;
