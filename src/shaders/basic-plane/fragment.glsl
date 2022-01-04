@@ -10,6 +10,25 @@ uniform highp float uTotalPower;
 
 #define PI 3.1415926538
 
+
+// https://gist.github.com/companje/29408948f1e8be54dd5733a74ca49bb9
+float map(float value, float min1, float max1, float min2, float max2) {
+  return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
+}
+
+// https://gist.github.com/yiwenl/3f804e80d0930e34a0b33359259b556c
+vec2 rotate(vec2 v, float a) {
+	float s = sin(a);
+	float c = cos(a);
+	mat2 m = mat2(c, -s, s, c);
+	return m * v;
+}
+
+// https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
+float rand(vec2 co){
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 //	Simplex 3D Noise 
 //	by Ian McEwan, Ashima Arts
 //
@@ -99,15 +118,36 @@ void main(){
         cos(st.y)/1.0,
         uTime/10.0+uTotalPower/10.0));
 
-    float distanceToCenter = distance(st, vec2(0.5)) + noiseVal;
+    float noiseVal2 = snoise(vec3(
+        sin(st.x)*20.0,
+        cos(st.y)*20.0,
+        uTime+uTotalPower/10.0));
+
+    float distanceToCenter = distance(st, vec2(0.5));
+    distanceToCenter = distance(st, vec2(0.5)) + noiseVal;
+
+
+    // rotation value
+    float distanceToCenterRandomSeed = floor(distanceToCenter*500.0);
+    vec2 vecFromCenter = vec2(0.5) - st;
+    float randomVal = rand(vec2(distanceToCenterRandomSeed, distanceToCenterRandomSeed));
+    float randomAnlge = map(randomVal, 0.0, 1.0, -PI, PI);
+    float rotatationAngle = (-(uTime*randomVal) + randomAnlge)*10.0;
+    vecFromCenter = rotate(vecFromCenter, rotatationAngle);
+    float angle = atan(vecFromCenter.x, vecFromCenter.y);
+    float angleIntensity = map(angle, -PI, PI, 0.2, 1.2);
+
+
     float totalPowerFactor = min(uTotalPower, 0.5);
 
     // distanceToCenter = distanceToCenter*distanceToCenter*totalPowerFactor;
     distanceToCenter /= 5.0;
     float soundValueR = texture2D( uRawFrequencyData, vec2(distanceToCenter, 0.0 ) ).r;
 
+    // soundValueR = soundValueR * angleIntensity;
+    // soundValueR = map(soundValueR, 0.0, 1.0, 0.0, 2.0);
 
 
-    vec3 color = vec3(soundValueR, soundValueR, soundValueR);
+    vec3 color = vec3(soundValueR);
     gl_FragColor = vec4(color, 1.0);
 }
