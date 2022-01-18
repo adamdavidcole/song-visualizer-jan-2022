@@ -4,7 +4,7 @@ import getGui from "./debug-gui";
 import vertexShader from "../shaders/analyzer-mesh/vertex.glsl";
 import fragmentShader from "../shaders/analyzer-mesh/fragment.glsl";
 
-const SOUND_FILE_PATH = "./sounds/first-song_003.mp3";
+const SOUND_FILE_PATH = "./sounds/first-song_004.mp3";
 
 const FFT_BAND_COUNT = 512 * 2 * 2;
 const FFT_SIZE = FFT_BAND_COUNT * 2;
